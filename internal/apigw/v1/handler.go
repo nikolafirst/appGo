@@ -9,10 +9,10 @@ type serverInterface interface {
 var _ serverInterface = (*Handler)(nil)
 
 func New(usersRepository usersClient, linksRepository linksClient) *Handler {
-	return &Handler{usersHandler: newUsersHandler(usersRepository), linksHandler: newLinksHandler(linksRepository)}
+	return &Handler{UsersHandler: NewUsersHandler(usersRepository), LinksHandler: NewLinksHandler(linksRepository)}
 }
 
 type Handler struct {
-	*usersHandler
-	*linksHandler
+	*UsersHandler
+	*LinksHandler
 }

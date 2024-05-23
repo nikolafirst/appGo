@@ -8,15 +8,15 @@ import (
 	"net/http"
 )
 
-func newLinksHandler(linksClient linksClient) *linksHandler {
-	return &linksHandler{client: linksClient}
+func NewLinksHandler(linksClient linksClient) *LinksHandler {
+	return &LinksHandler{client: linksClient}
 }
 
-type linksHandler struct {
+type LinksHandler struct {
 	client linksClient
 }
 
-func (h *linksHandler) GetLinks(w http.ResponseWriter, r *http.Request) {
+func (h *LinksHandler) GetLinks(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	resp, err := h.client.ListLinks(ctx, nil)
@@ -44,7 +44,7 @@ func (h *linksHandler) GetLinks(w http.ResponseWriter, r *http.Request) {
 	httputil.MarshalResponse(w, http.StatusOK, linkList)
 }
 
-func (h *linksHandler) PostLinks(w http.ResponseWriter, r *http.Request) {
+func (h *LinksHandler) PostLinks(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var l apiv1.LinkCreate
@@ -76,7 +76,7 @@ func (h *linksHandler) PostLinks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (h *linksHandler) DeleteLinksId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *LinksHandler) DeleteLinksId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
 	if _, err := h.client.DeleteLink(ctx, &pb.DeleteLinkRequest{Id: id}); err != nil {
@@ -87,7 +87,7 @@ func (h *linksHandler) DeleteLinksId(w http.ResponseWriter, r *http.Request, id 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *linksHandler) GetLinksId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *LinksHandler) GetLinksId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
 	link, err := h.client.GetLink(ctx, &pb.GetLinkRequest{Id: id})
@@ -110,7 +110,7 @@ func (h *linksHandler) GetLinksId(w http.ResponseWriter, r *http.Request, id str
 	)
 }
 
-func (h *linksHandler) PutLinksId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *LinksHandler) PutLinksId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 	var l apiv1.LinkCreate
 	code, err := httputil.Unmarshal(w, r, &l)
@@ -140,7 +140,7 @@ func (h *linksHandler) PutLinksId(w http.ResponseWriter, r *http.Request, id str
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *linksHandler) GetLinksUserUserID(w http.ResponseWriter, r *http.Request, userID string) {
+func (h *LinksHandler) GetLinksUserUserID(w http.ResponseWriter, r *http.Request, userID string) {
 	ctx := r.Context()
 	resp, err := h.client.GetLinkByUserID(ctx, &pb.GetLinksByUserId{UserId: userID})
 	if err != nil {
