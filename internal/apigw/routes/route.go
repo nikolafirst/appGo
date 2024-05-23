@@ -1,9 +1,10 @@
 package routes
 
 import (
-	"appGo/pkg/api/apiv1"
 	"log/slog"
 	"net/http"
+
+	"appGo/pkg/api/apiv1"
 
 	"github.com/go-chi/chi/v5"
 )

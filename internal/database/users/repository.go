@@ -3,10 +3,13 @@ package users
 import (
 	"appGo/internal/database"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -41,6 +44,10 @@ func (r *Repository) Create(ctx context.Context, req database.CreateUserReq) (da
 		SET username = $2, password = $3, updated_at = $5
 	`
 	if _, err := r.db.Exec(ctx, query, u.ID, u.Username, u.Password, now, now); err != nil {
+		var writerErr *pgconn.PgError
+		if errors.As(err, &writerErr) && writerErr.Code == "23505" {
+			return u, database.ErrConflict
+		}
 		return u, fmt.Errorf("postgres Exec: %w", err)
 	}
 
@@ -68,6 +75,10 @@ func (r *Repository) FindByID(ctx context.Context, userID uuid.UUID) (database.U
 		&u.ID, &u.Username,
 		&u.Password, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return u, database.ErrNotFound
+		}
+
 		return u, fmt.Errorf("postgres QueryRow Decode: %w", err)
 	}
 
@@ -114,6 +125,9 @@ func (r *Repository) FindByUsername(ctx context.Context, username string) (datab
 		&u.ID, &u.Username,
 		&u.Password, &u.CreatedAt, &u.UpdatedAt,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return u, database.ErrNotFound
+		}
 		return u, fmt.Errorf("postgres QueryRow Decode: %w", err)
 	}
 

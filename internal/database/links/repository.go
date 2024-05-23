@@ -3,6 +3,7 @@ package links
 import (
 	"appGo/internal/database"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,6 +41,11 @@ func (r *Repository) Create(ctx context.Context, req database.CreateLinkReq) (da
 		UpdatedAt: now,
 	}
 	if _, err := r.db.Collection(collection).InsertOne(ctx, l); err != nil {
+		var writeErr mongo.WriteException
+		if errors.As(err, &writeErr) && writeErr.HasErrorCode(11000) {
+			return l, database.ErrConflict
+		}
+
 		return l, fmt.Errorf("mongo InsertOne: %w", err)
 	}
 
@@ -66,7 +72,7 @@ func (r *Repository) Update(ctx context.Context, req database.UpdateLinkReq) (da
 
 	opts := options.Replace().SetUpsert(true)
 
-	if _, err := r.db.Collection(collection).ReplaceOne(ctx, bson.M{"id": req.ID}, l, opts); err != nil {
+	if _, err := r.db.Collection(collection).ReplaceOne(ctx, bson.M{"_id": req.ID}, l, opts); err != nil {
 		return l, fmt.Errorf("mongo ReplaceOne: %w", err)
 	}
 
@@ -77,7 +83,7 @@ func (r *Repository) Delete(ctx context.Context, id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
-	if _, err := r.db.Collection(collection).DeleteOne(ctx, bson.M{"id": id}); err != nil {
+	if _, err := r.db.Collection(collection).DeleteOne(ctx, bson.M{"_id": id}); err != nil {
 		return fmt.Errorf("mongo DeletOne: %w", err)
 	}
 
@@ -88,8 +94,12 @@ func (r *Repository) FindByID(ctx context.Context, id primitive.ObjectID) (datab
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var l database.Link
-	result := r.db.Collection(collection).FindOne(ctx, bson.M{"id": id})
+	result := r.db.Collection(collection).FindOne(ctx, bson.M{"_id": id})
 	if err := result.Err(); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return l, database.ErrNotFound
+		}
+
 		return l, fmt.Errorf("mongo FindOne: %w", err)
 	}
 
@@ -126,6 +136,9 @@ func (r *Repository) FindByUserAndURL(ctx context.Context, link, userID string) 
 	defer cancel()
 	result := r.db.Collection(collection).FindOne(ctx, bson.M{"url": link, "user_id": userID})
 	if err := result.Err(); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return l, database.ErrNotFound
+		}
 		return l, fmt.Errorf("mongo FindOne: %w", err)
 	}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"appGo/internal/env"
 	"context"
 	"fmt"
 	"log"
@@ -10,6 +9,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"appGo/internal/env"
 )
 
 func main() {
