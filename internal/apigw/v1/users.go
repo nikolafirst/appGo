@@ -8,15 +8,15 @@ import (
 	"net/http"
 )
 
-func newUsersHandler(usersClient usersClient) *usersHandler {
-	return &usersHandler{client: usersClient}
+func NewUsersHandler(usersClient usersClient) *UsersHandler {
+	return &UsersHandler{client: usersClient}
 }
 
-type usersHandler struct {
+type UsersHandler struct {
 	client usersClient
 }
 
-func (h *usersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+func (h *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	resp, err := h.client.ListUsers(ctx, &pb.Empty{})
 	if err != nil {
@@ -40,7 +40,7 @@ func (h *usersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	httputil.MarshalResponse(w, http.StatusOK, userList)
 }
 
-func (h *usersHandler) PostUsers(w http.ResponseWriter, r *http.Request) {
+func (h *UsersHandler) PostUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var u apiv1.UserCreate
@@ -69,7 +69,7 @@ func (h *usersHandler) PostUsers(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (h *usersHandler) DeleteUsersId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *UsersHandler) DeleteUsersId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
 	if _, err := h.client.DeleteUser(ctx, &pb.DeleteUserRequest{Id: id}); err != nil {
@@ -80,7 +80,7 @@ func (h *usersHandler) DeleteUsersId(w http.ResponseWriter, r *http.Request, id 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *usersHandler) GetUsersId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *UsersHandler) GetUsersId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
 	u, err := h.client.GetUser(ctx, &pb.GetUserRequest{Id: id})
@@ -100,7 +100,7 @@ func (h *usersHandler) GetUsersId(w http.ResponseWriter, r *http.Request, id str
 	)
 }
 
-func (h *usersHandler) PutUsersId(w http.ResponseWriter, r *http.Request, id string) {
+func (h *UsersHandler) PutUsersId(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
 	var u apiv1.UserCreate
