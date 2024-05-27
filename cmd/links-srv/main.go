@@ -28,14 +28,34 @@ func runMain(ctx context.Context) error {
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(4)
 
+	logger := e.Logger
 	grpcServer := e.LinksGRPCServer
 
 	go func() {
+		defer wg.Done()
 		<-ctx.Done()
 		// если посылаем сигнал завершения то завершаем работу нашего сервера
 		grpcServer.Stop()
+	}()
+
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+
+		if err := e.AMQPCloser(); err != nil {
+			logger.Error("amqp closer", slog.Any("err", err))
+			return
+		}
+	}()
+
+	// Создаем воркер для прослушки очереди и обновления
+	go func() {
+		defer wg.Done()
+		if err := e.LinkUpdater.Run(ctx); err != nil {
+			slog.Error("link updater Run: %w", err)
+		}
 	}()
 
 	go func() {
