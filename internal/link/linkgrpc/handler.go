@@ -4,9 +4,11 @@ import (
 	"appGo/internal/database"
 	"appGo/pkg/pb"
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
+	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -84,8 +86,21 @@ func (h Handler) CreateLink(ctx context.Context, request *pb.CreateLinkRequest) 
 		ID string `json:"id"`
 	}
 
-	// implement me
-	// h.pub.Publish()
+	encoded, err := json.Marshal(message{ID: objectID.Hex()})
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	const queueName = "link_queue"
+	err = h.pub.Publish(
+		"", queueName, false, false, amqp.Publishing{
+			ContentType: "application/json",
+			Body:        encoded,
+		},
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	return &pb.Empty{}, nil
 }

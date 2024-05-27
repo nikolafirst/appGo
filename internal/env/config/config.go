@@ -11,6 +11,12 @@ type Config struct {
 	UsersService UsersService `env:",prefix=USERS_"`
 	LinksService LinksService `env:",prefix=LINKS_"`
 	ApiGWService ApiGWService `env:",prefix=APIGW_"`
+	Logger       LoggerConfig `env:",prefix=LOGGER_"`
+}
+
+type LoggerConfig struct {
+	Level string `env:"LEVEL,default=debug"`
+	Debug bool   `env:"DEBUG,default=true"`
 }
 
 type AMQPConfig struct {

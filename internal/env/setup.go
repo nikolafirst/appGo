@@ -11,8 +11,11 @@ import (
 	"appGo/internal/user/usergrpc"
 	"appGo/pkg/pb"
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -31,6 +34,8 @@ type Env struct {
 	LinksGRPCServer *grpc.Server
 	UsersGRPCServer *grpc.Server
 	LinkUpdater     *link_updater.Story
+	AMQPCloser      func() error
+	Logger          *slog.Logger
 }
 
 func Setup(ctx context.Context) (*Env, error) {
@@ -39,6 +44,11 @@ func Setup(ctx context.Context) (*Env, error) {
 
 	if err := envconfig.Process(ctx, &cfg); err != nil { //nolint:typecheck
 		return nil, fmt.Errorf("env processing: %w", err)
+	}
+
+	logger, err := initLogger(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("initLogger: %w", err)
 	}
 
 	linksDBConn, err := mongo.Connect(
@@ -63,15 +73,22 @@ func Setup(ctx context.Context) (*Env, error) {
 		return nil, fmt.Errorf("amqp Dial: %w", err)
 	}
 
-	defer amqpConn.Close()
-
 	amqpChannel, err := amqpConn.Channel()
 	if err != nil {
 		return nil, fmt.Errorf("amqp Channel: %w", err)
 	}
 
-	// задекларируйте очередь
-	// amqpChannel.QueueDeclare()
+	_, err = amqpChannel.QueueDeclare(
+		"link_queue",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("channel QueueDeclare: %w", err)
+	}
 
 	usersRepository := users.New(usersDBConn, 5*time.Second) // вынести в конфиг duration
 	linksRepository := links.New(
@@ -137,11 +154,34 @@ func Setup(ctx context.Context) (*Env, error) {
 		IdleTimeout:       cfg.ApiGWService.ReadTimeout,
 	}
 
-	linkUpdaterStory := link_updater.New(linksRepository, amqpChannel)
+	linkUpdaterStory := link_updater.New(linksRepository, amqpChannel, logger)
 
 	env.ApiGWHTTPServer = apiGWServer
 	env.Config = cfg
 	env.LinkUpdater = linkUpdaterStory
+	env.AMQPCloser = func() error {
+		return errors.Join(amqpConn.Close(), amqpChannel.Close())
+	}
+	env.Logger = logger
 
 	return env, nil
+}
+
+func initLogger(cfg *config.Config) (*slog.Logger, error) {
+	lvl := new(slog.Level)
+	if err := lvl.UnmarshalText([]byte(cfg.Logger.Level)); err != nil {
+		return nil, fmt.Errorf("log level UnmarshalText: %w", err)
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: lvl,
+	}
+
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stdout, opts)
+	if !cfg.Logger.Debug {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	return slog.New(handler), nil
 }
